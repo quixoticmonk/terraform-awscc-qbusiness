@@ -1,7 +1,7 @@
-resource "awscc_qbusiness_application" "example" {
+resource "awscc_qbusiness_application" "this"{
   description                  = "Example QBusiness Application"
-  display_name                 = "example_q_app"
-  identity_center_instance_arn = data.aws_ssoadmin_instances.example.arns[0]
+  display_name                 = "${var.prefix}_q_app"
+  identity_center_instance_arn = data.aws_ssoadmin_instances.this.arns[0]
   attachments_configuration = {
     attachments_control_mode = "ENABLED"
   }
@@ -15,9 +15,9 @@ resource "awscc_qbusiness_application" "example" {
 
 
 
-resource "awscc_qbusiness_index" "example" {
-  application_id = awscc_qbusiness_application.example.application_id
-  display_name   = "example_q_index"
+resource "awscc_qbusiness_index" "this"{
+  application_id = awscc_qbusiness_application.this.application_id
+  display_name   = "${var.prefix}_q_index"
   description    = "Example QBusiness Index"
   type           = "ENTERPRISE"
   capacity_configuration = {
@@ -31,14 +31,14 @@ resource "awscc_qbusiness_index" "example" {
 
 }
 
-resource "awscc_qbusiness_retriever" "example" {
-  application_id = awscc_qbusiness_application.example.application_id
-  display_name   = "example_q_retriever"
+resource "awscc_qbusiness_retriever" "this"{
+  application_id = awscc_qbusiness_application.this.application_id
+  display_name   = "${var.prefix}_q_retriever"
   type           = "NATIVE_INDEX"
 
   configuration = {
     native_index_configuration = {
-      index_id = awscc_qbusiness_index.example.index_id
+      index_id = awscc_qbusiness_index.this.index_id
     }
   }
   tags = [{
@@ -48,9 +48,9 @@ resource "awscc_qbusiness_retriever" "example" {
 
 }
 
-resource "awscc_qbusiness_web_experience" "example" {
-  application_id              = awscc_qbusiness_application.example.application_id
-  role_arn                    = awscc_iam_role.example.arn
+resource "awscc_qbusiness_web_experience" "this"{
+  application_id              = awscc_qbusiness_application.this.application_id
+  role_arn                    = awscc_iam_role.this.arn
   sample_prompts_control_mode = "ENABLED"
   subtitle                    = "Drop a file and ask questions"
   title                       = "Sample Amazon Q Business App"
@@ -62,7 +62,7 @@ resource "awscc_qbusiness_web_experience" "example" {
   }]
 }
 
-resource "awscc_iam_role" "example" {
+resource "awscc_iam_role" "this"{
   role_name   = "Amazon-QBusiness-WebExperience-Role"
   description = "Grants permissions to AWS Services and Resources used or managed by Amazon Q Business"
   assume_role_policy_document = jsonencode({
@@ -83,7 +83,7 @@ resource "awscc_iam_role" "example" {
             "aws:SourceAccount" = data.aws_caller_identity.current.account_id
           }
           ArnEquals = {
-            "aws:SourceArn" = awscc_qbusiness_application.example.application_arn
+            "aws:SourceArn" = awscc_qbusiness_application.this.application_arn
           }
         }
       }
@@ -109,21 +109,21 @@ resource "awscc_iam_role" "example" {
             "qbusiness:ListPlugins",
             "qbusiness:GetChatControlsConfiguration"
           ]
-          Resource = awscc_qbusiness_application.example.application_arn
+          Resource = awscc_qbusiness_application.this.application_arn
         }
       ]
     })
+  }]
   tags = [{
     key   = "Modified By"
     value = "AWSCC"
   }]
 }
-}
 
 resource "awscc_qbusiness_data_source" "exaple" {
-  application_id = awscc_qbusiness_application.example.application_id
-  display_name   = "example_q_data_source"
-  index_id       = awscc_qbusiness_index.example.index_id
+  application_id = awscc_qbusiness_application.this.application_id
+  display_name   = "${var.prefix}_q_data_source"
+  index_id       = awscc_qbusiness_index.this.index_id
   role_arn       = awscc_iam_role.ds.arn
   configuration = jsonencode(
     {
@@ -157,7 +157,7 @@ resource "awscc_qbusiness_data_source" "exaple" {
   }]
 }
 
-resource "awscc_iam_role" "example" {
+resource "awscc_iam_role" "this"{
   role_name   = "QBusiness-DataSource-Role"
   description = "QBusiness Data source role"
   assume_role_policy_document = jsonencode({
@@ -187,7 +187,7 @@ resource "awscc_iam_role" "example" {
   }]
 }
 
-resource "awscc_iam_role_policy" "example" {
+resource "awscc_iam_role_policy" "this"{
   policy_name = "sample_iam_role_policy"
   role_name   = awscc_iam_role.ds.id
 
@@ -210,7 +210,7 @@ resource "awscc_iam_role_policy" "example" {
           "qbusiness:BatchPutDocument",
           "qbusiness:BatchDeleteDocument"
         ]
-        Resource = "arn:aws:qbusiness:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:application/${awscc_qbusiness_application.example.id}/index/${awscc_qbusiness_index.example.id}"
+        Resource = "arn:aws:qbusiness:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:application/${awscc_qbusiness_application.this.id}/index/${awscc_qbusiness_index.this.id}"
       },
       {
         Effect = "Allow"
@@ -220,9 +220,9 @@ resource "awscc_iam_role_policy" "example" {
           "qbusiness:UpdateUser",
         "qbusiness:ListGroups"]
         Resource = [
-          "arn:aws:qbusiness:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:application/${awscc_qbusiness_application.example.id}",
-          "arn:aws:qbusiness:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:application/${awscc_qbusiness_application.example.id}/index/${awscc_qbusiness_index.example.id}",
-          "arn:aws:qbusiness:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:application/${awscc_qbusiness_application.example.id}/index/${awscc_qbusiness_index.example.id}/data-source/*"
+          "arn:aws:qbusiness:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:application/${awscc_qbusiness_application.this.id}",
+          "arn:aws:qbusiness:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:application/${awscc_qbusiness_application.this.id}/index/${awscc_qbusiness_index.this.id}",
+          "arn:aws:qbusiness:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:application/${awscc_qbusiness_application.this.id}/index/${awscc_qbusiness_index.this.id}/data-source/*"
         ]
       }
     ]
