@@ -5,10 +5,10 @@ resource "awscc_qbusiness_application" "this" {
     attachments_control_mode = "ENABLED"
   }
 
-  encryption_configuration = {
+  # encryption_configuration = {
 
-    kms_key_id = local.kms_key
-  }
+  #   kms_key_id = local.kms_key
+  # }
   dynamic "encryption_configuration" {
     for_each = var.enable_encryption ? [local.kms_key] : []
     content {
