@@ -1,28 +1,14 @@
 resource "awscc_qbusiness_application" "this" {
-  display_name = "${var.prefix}_q_app"
-  description  = "Example QBusiness Application"
+  display_name                 = "${var.prefix}_q_app"
+  description                  = "${var.prefix} QBusiness Application"
+  encryption_configuration     = local.encryption_config
+  identity_center_instance_arn = data.aws_ssoadmin_instances.this.arns[0]
+  # role_arn                     = var.app_role_arn ? var.app_role_arn : ""
   attachments_configuration = {
     attachments_control_mode = "ENABLED"
   }
 
-  # encryption_configuration = {
-
-  #   kms_key_id = local.kms_key
-  # }
-  dynamic "encryption_configuration" {
-    for_each = var.enable_encryption ? [local.kms_key] : []
-    content {
-      kms_key_id = local.kms_key
-    }
-  }
-
-  identity_center_instance_arn = data.aws_ssoadmin_instances.this.arns[0]
-  # role_arn                     = var.app_role_arn ? var.app_role_arn : ""
-
-  tags = [{
-    key   = "Modified By"
-    value = "AWSCC"
-  }]
+  tags = var.tags
 
 }
 
@@ -41,7 +27,7 @@ resource "awscc_kms_key" "this" {
         "Sid" : "Enable IAM User Permissions",
         "Effect" : "Allow",
         "Principal" : {
-          "AWS" : "arn:aws:iam::111122223333:root"
+          "AWS" : "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
         },
         "Action" : "kms:*",
         "Resource" : "*"
@@ -49,117 +35,103 @@ resource "awscc_kms_key" "this" {
     ],
     },
   )
-  tags = [{
-    key   = "Name"
-    value = "this"
-  }]
+  tags = var.tags
 }
 
 
-# resource "awscc_qbusiness_index" "this" {
-#   application_id = awscc_qbusiness_application.this.application_id
-#   display_name   = "${var.prefix}_q_index"
-#   description    = "Example QBusiness Index"
-#   type           = "ENTERPRISE"
-#   capacity_configuration = {
-#     units = 1
-#   }
+resource "awscc_qbusiness_index" "this" {
+  application_id = awscc_qbusiness_application.this.application_id
+  display_name   = "${var.prefix}_q_index"
+  description    = "${var.prefix} QBusiness Index"
+  type           = var.index_type
+  capacity_configuration = {
+    units = var.storage_units
+  }
+  document_attribute_configurations = var.attribute_config
+  tags                              = var.tags
 
-#   tags = [{
-#     key   = "Modified By"
-#     value = "AWSCC"
-#   }]
+}
 
-# }
+resource "awscc_qbusiness_retriever" "this" {
+  application_id = awscc_qbusiness_application.this.application_id
+  display_name   = "${var.prefix}_q_retriever"
+  type           = "NATIVE_INDEX"
+  # role_arn = ""
 
-# resource "awscc_qbusiness_retriever" "this" {
-#   application_id = awscc_qbusiness_application.this.application_id
-#   display_name   = "${var.prefix}_q_retriever"
-#   type           = "NATIVE_INDEX"
+  configuration = {
+    native_index_configuration = {
+      index_id = awscc_qbusiness_index.this.index_id
+    }
+  }
+  tags = var.tags
 
-#   configuration = {
-#     native_index_configuration = {
-#       index_id = awscc_qbusiness_index.this.index_id
-#     }
-#   }
-#   tags = [{
-#     key   = "Modified By"
-#     value = "AWSCC"
-#   }]
+}
 
-# }
+resource "awscc_qbusiness_web_experience" "this" {
+  application_id              = awscc_qbusiness_application.this.application_id
+  role_arn                    = awscc_iam_role.this.arn
+  sample_prompts_control_mode = "ENABLED"
+  subtitle                    = var.web_exp_subtitle
+  title                       = var.web_exp_title
+  welcome_message             = var.welcome_message
 
-# resource "awscc_qbusiness_web_experience" "this" {
-#   application_id              = awscc_qbusiness_application.this.application_id
-#   role_arn                    = awscc_iam_role.this.arn
-#   sample_prompts_control_mode = "ENABLED"
-#   subtitle                    = "Drop a file and ask questions"
-#   title                       = "Sample Amazon Q Business App"
-#   welcome_message             = "Welcome, please enter your questions"
+  tags = var.tags
+}
 
-#   tags = [{
-#     key   = "Modified By"
-#     value = "AWSCC"
-#   }]
-# }
-
-# resource "awscc_iam_role" "this" {
-#   role_name   = "Amazon-QBusiness-WebExperience-Role"
-#   description = "Grants permissions to AWS Services and Resources used or managed by Amazon Q Business"
-#   assume_role_policy_document = jsonencode({
-#     Version = "2012-10-17"
-#     Statement = [
-#       {
-#         Sid    = "QBusinessTrustPolicy"
-#         Effect = "Allow"
-#         Principal = {
-#           Service = "application.qbusiness.amazonaws.com"
-#         }
-#         Action = [
-#           "sts:AssumeRole",
-#           "sts:SetContext"
-#         ]
-#         Condition = {
-#           StringEquals = {
-#             "aws:SourceAccount" = data.aws_caller_identity.current.account_id
-#           }
-#           ArnEquals = {
-#             "aws:SourceArn" = awscc_qbusiness_application.this.application_arn
-#           }
-#         }
-#       }
-#     ]
-#   })
-#   policies = [{
-#     policy_name = "qbusiness_policy"
-#     policy_document = jsonencode({
-#       Version = "2012-10-17"
-#       Statement = [
-#         {
-#           Sid    = "QBusinessConversationPermission"
-#           Effect = "Allow"
-#           Action = [
-#             "qbusiness:Chat",
-#             "qbusiness:ChatSync",
-#             "qbusiness:ListMessages",
-#             "qbusiness:ListConversations",
-#             "qbusiness:DeleteConversation",
-#             "qbusiness:PutFeedback",
-#             "qbusiness:GetWebExperience",
-#             "qbusiness:GetApplication",
-#             "qbusiness:ListPlugins",
-#             "qbusiness:GetChatControlsConfiguration"
-#           ]
-#           Resource = awscc_qbusiness_application.this.application_arn
-#         }
-#       ]
-#     })
-#   }]
-#   tags = [{
-#     key   = "Modified By"
-#     value = "AWSCC"
-#   }]
-# }
+resource "awscc_iam_role" "this" {
+  role_name   = "Amazon-QBusiness-WebExperience-Role-${var.prefix}"
+  description = "Grants permissions to AWS Services and Resources used or managed by Amazon Q Business"
+  assume_role_policy_document = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "QBusinessTrustPolicy"
+        Effect = "Allow"
+        Principal = {
+          Service = "application.qbusiness.amazonaws.com"
+        }
+        Action = [
+          "sts:AssumeRole",
+          "sts:SetContext"
+        ]
+        Condition = {
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+          ArnEquals = {
+            "aws:SourceArn" = awscc_qbusiness_application.this.application_arn
+          }
+        }
+      }
+    ]
+  })
+  policies = [{
+    policy_name = "qbusiness_policy"
+    policy_document = jsonencode({
+      Version = "2012-10-17"
+      Statement = [
+        {
+          Sid    = "QBusinessConversationPermission"
+          Effect = "Allow"
+          Action = [
+            "qbusiness:Chat",
+            "qbusiness:ChatSync",
+            "qbusiness:ListMessages",
+            "qbusiness:ListConversations",
+            "qbusiness:DeleteConversation",
+            "qbusiness:PutFeedback",
+            "qbusiness:GetWebExperience",
+            "qbusiness:GetApplication",
+            "qbusiness:ListPlugins",
+            "qbusiness:GetChatControlsConfiguration"
+          ]
+          Resource = awscc_qbusiness_application.this.application_arn
+        }
+      ]
+    })
+  }]
+  tags = var.tags
+}
 
 # resource "awscc_qbusiness_data_source" "exaple" {
 #   application_id = awscc_qbusiness_application.this.application_id
